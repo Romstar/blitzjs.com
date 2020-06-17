@@ -268,7 +268,7 @@ Before running the app again, we need to customize some of these pages which hav
 
 ```jsx
 export const QuestionsList: React.FC = () => {
-  const [questions] = useQuery(getQuestions, {orderBy: {id: "desc"}})
+  const [questions] = useQuery(getQuestions, { orderBy: { id: "desc" } })
 
   return (
     <ul>
@@ -288,7 +288,7 @@ This won’t work though! Remember that the `Question` model we created above do
 
 ```jsx
 export const QuestionsList: React.FC = () => {
-  const [questions] = useQuery(getQuestions, {orderBy: {id: "desc"}})
+  const [questions] = useQuery(getQuestions, { orderBy: { id: "desc" } })
 
   return (
     <ul>
@@ -313,7 +313,7 @@ const question = await createQuestion({data: {name: "MyName"}})
 with
 
 ```jsx
-const question = await createQuestion({data: {text: "Do you love Blitz?"}})
+const question = await createQuestion({ data: { text: "Do you love Blitz?" } })
 ```
 
 Finally, we need to fix the edit page. Open `app/questions/pages/questions/[questionId]/edit.tsx` and replace
@@ -329,8 +329,8 @@ with
 
 ```jsx
 const updated = await updateQuestion({
-  where: {id: question.id},
-  data: {text: "Do you really love Blitz?"},
+  where: { id: question.id },
+  data: { text: "Do you really love Blitz?" },
 })
 ```
 
@@ -392,7 +392,7 @@ onSubmit={async (event) => {
 In the end, your page should look something like this:
 
 ```jsx
-import {Head, Link, useRouter} from "blitz"
+import { Head, Link, useRouter } from "blitz"
 import createQuestion from "app/questions/mutations/createQuestion"
 import QuestionForm from "app/questions/components/QuestionForm"
 
@@ -418,9 +418,9 @@ const NewQuestionPage: React.FC = () => {
                   text: event.target[0].value,
                   choices: {
                     create: [
-                      {text: event.target[1].value},
-                      {text: event.target[2].value},
-                      {text: event.target[3].value},
+                      { text: event.target[1].value },
+                      { text: event.target[2].value },
+                      { text: event.target[3].value },
                     ],
                   },
                 },
@@ -453,8 +453,8 @@ Time for a breather. Go back to `http://localhost:3000/questions` in your browse
 ```js
 // app/questions/queries/getQuestion.ts
 
-export default async function getQuestion({where}: GetQuestionInput) {
-  const question = await db.question.findOne({where, include: {choices: true}})
+export default async function getQuestion({ where }: GetQuestionInput) {
+  const question = await db.question.findOne({ where, include: { choices: true } })
 
   return question
 }
@@ -476,7 +476,7 @@ export default async function getQuestions({
     cursor,
     take,
     skip,
-    include: {choices: true},
+    include: { choices: true },
   })
 
   return questions
@@ -563,8 +563,8 @@ Finally, we’ll tell our new `button` to call that function!
 To be sure, this is what all that should look like:
 
 ```jsx
-import React, {Suspense} from "react"
-import {Head, Link, useRouter, useQuery, useParam} from "blitz"
+import React, { Suspense } from "react"
+import { Head, Link, useRouter, useQuery, useParam } from "blitz"
 import getQuestion from "app/questions/queries/getQuestion"
 import deleteQuestion from "app/questions/mutations/deleteQuestion"
 import updateChoice from "app/choices/mutations/updateChoice"
@@ -572,13 +572,13 @@ import updateChoice from "app/choices/mutations/updateChoice"
 export const Question: React.FC = () => {
   const router = useRouter()
   const questionId = useParam("questionId", "number")
-  const [question] = useQuery(getQuestion, {where: {id: questionId}})
+  const [question] = useQuery(getQuestion, { where: { id: questionId } })
 
   const handleVote = async (id, votes) => {
     try {
       const updated = await updateChoice({
-        where: {id},
-        data: {votes: votes + 1},
+        where: { id },
+        data: { votes: votes + 1 },
       })
       alert("Success!" + JSON.stringify(updated))
     } catch (error) {
@@ -606,10 +606,11 @@ export const Question: React.FC = () => {
         type="button"
         onClick={async () => {
           if (window.confirm("This will be deleted")) {
-            await deleteQuestion({where: {id: question.id}})
+            await deleteQuestion({ where: { id: question.id } })
             router.push("/questions")
           }
-        }}>
+        }}
+      >
         Delete
       </button>
     </div>
