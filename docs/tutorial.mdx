@@ -175,7 +175,7 @@ blitz generate all choice text votes:int:default[0] belongsTo:question
 >   createdAt  DateTime @default(now())
 >   updatedAt  DateTime @updatedAt
 >   text       String
->   vote       Int      @default(0)
+>   votes      Int      @default(0)
 >   question   Question @relation(fields: [questionId], references: [id])
 >   questionId Int
 > }
@@ -267,8 +267,8 @@ undefined
 Before running the app again, we need to customize some of these pages which have been generated. Open your text editor and look at `app/questions/pages/questions/index.tsx`. Notice that a `QuestionsList` component has been generated for you:
 
 ```jsx
-export const QuestionsList = () => {
-  const [questions] = useQuery(getQuestions, {})
+export const QuestionsList: React.FC = () => {
+  const [questions] = useQuery(getQuestions, {orderBy: {id: "desc"}})
 
   return (
     <ul>
@@ -287,8 +287,8 @@ export const QuestionsList = () => {
 This won’t work though! Remember that the `Question` model we created above doesn’t have any `name` field. To fix this, replace `question.name` with `question.text`:
 
 ```jsx
-export const QuestionsList = () => {
-  const [questions] = useQuery(getQuestions, {})
+export const QuestionsList: React.FC = () => {
+  const [questions] = useQuery(getQuestions, {orderBy: {id: "desc"}})
 
   return (
     <ul>
@@ -338,9 +338,9 @@ Great! Now make sure your app is running. If it isn’t, run `blitz start` in yo
 
 ## Writing a minimal form
 
-You’re doing great so far! The next thing we’ll do is give our form some real inputs. At the moment it’s giving every `Question` the same name! Have a look at `app/questions/pages/questions/new.tsx` in your editor.
+You’re doing great so far! The next thing we’ll do is give our form some real inputs. At the moment it’s giving every `Question` the same name! Have a look at `app/questions/components/QuestionForm.tsx` in your editor.
 
-Delete the div that says: `<div>Put your form fields here. But for now, click submit</div>`, and replace it with some inputs:
+Delete the div that says: `<div>Put your form fields here. But for now, just click submit</div>`, and replace it with some inputs:
 
 ```jsx
 <input placeholder="Name" />
@@ -350,13 +350,53 @@ Delete the div that says: `<div>Put your form fields here. But for now, click su
 <input placeholder="Choice 1" />
 ```
 
-Finally, we’re going to make sure all that data is submitted. In the end, your page should look something like this:
+Finally, we’re going to make sure all that data is submitted. Open up `app/questions/pages/questions/new.tsx` in your editor and replace
+
+```jsx
+onSubmit={async () => {
+  try {
+    const question = await createQuestion({data: {name: 'MyName'}})
+    alert('Success!' + JSON.stringify(question))
+    router.push('/questions/[questionId]', `/questions/${question.id}`)
+  } catch (error) {
+    alert('Error creating question ' + JSON.stringify(error, null, 2))
+  }
+}}
+```
+
+with
+
+```jsx
+onSubmit={async (event) => {
+  try {
+    const question = await createQuestion({
+      data: {
+        text: event.target[0].value,
+        choices: {
+          create: [
+            { text: event.target[1].value },
+            { text: event.target[2].value },
+            { text: event.target[3].value },
+          ],
+        },
+      },
+    })
+    alert("Success!" + JSON.stringify(question))
+    router.push("/questions/[questionId]", `/questions/${question.id}`)
+  } catch (error) {
+    alert("Error creating question " + JSON.stringify(error, null, 2))
+  }
+}}
+```
+
+In the end, your page should look something like this:
 
 ```jsx
 import {Head, Link, useRouter} from "blitz"
 import createQuestion from "app/questions/mutations/createQuestion"
+import QuestionForm from "app/questions/components/QuestionForm"
 
-const NewQuestionPage = () => {
+const NewQuestionPage: React.FC = () => {
   const router = useRouter()
 
   return (
@@ -369,10 +409,9 @@ const NewQuestionPage = () => {
       <main>
         <h1>Create New Question </h1>
 
-        <form
+        <QuestionForm
+          initialValues={{}}
           onSubmit={async (event) => {
-            event.preventDefault()
-
             try {
               const question = await createQuestion({
                 data: {
@@ -391,15 +430,8 @@ const NewQuestionPage = () => {
             } catch (error) {
               alert("Error creating question " + JSON.stringify(error, null, 2))
             }
-          }}>
-          <input placeholder="Name" />
-
-          <input placeholder="Choice 1" />
-          <input placeholder="Choice 1" />
-          <input placeholder="Choice 1" />
-
-          <button>Submit</button>
-        </form>
+          }}
+        />
 
         <p>
           <Link href="/questions">
@@ -421,10 +453,8 @@ Time for a breather. Go back to `http://localhost:3000/questions` in your browse
 ```js
 // app/questions/queries/getQuestion.ts
 
-import db, {FindOneQuestionArgs} from "db"
-
-export default async function getQuestion(args: FindOneQuestionArgs) {
-  const question = await db.question.findOne({...args, include: {choices: true}})
+export default async function getQuestion({where}: GetQuestionInput) {
+  const question = await db.question.findOne({where, include: {choices: true}})
 
   return question
 }
@@ -433,16 +463,27 @@ export default async function getQuestion(args: FindOneQuestionArgs) {
 ```js
 // app/questions/queries/getQuestions.ts
 
-import db, {FindManyQuestionArgs} from "db"
-
-export default async function getQuestions(args: FindManyQuestionArgs) {
-  const questions = await db.question.findMany({...args, include: {choices: true}})
+export default async function getQuestions({
+  where,
+  orderBy,
+  cursor,
+  take,
+  skip,
+}: GetQuestionsInput) {
+  const questions = await db.question.findMany({
+    where,
+    orderBy,
+    cursor,
+    take,
+    skip,
+    include: {choices: true},
+  })
 
   return questions
 }
 ```
 
-Now hop back to our main questions page in your editor, and we can list the choices of each question . Add this code beneath the `Link` in our `QuestionsList`:
+Now hop back to our main questions page in your editor, and we can list the choices of each question. Add this code beneath the `Link` in our `QuestionsList`:
 
 ```jsx
 <ul>
@@ -480,26 +521,7 @@ If you go back to your browser, your page should now look something like this!
   src="https://user-images.githubusercontent.com/24858006/80387990-3c3d8b80-88a1-11ea-956a-5be85f1e8f12.png"
 />
 
-Now that you’ve improved the question page, it’s time for the vote button.
-
-First, we need a new mutation. Create a file at `app/questions/mutations/updateChoice.ts`, and paste in the following code:
-
-```js
-import db, {ChoiceUpdateArgs} from "db"
-
-export default async function updateChoice(args: ChoiceUpdateArgs) {
-  // Don't allow updating ID
-  delete args.data.id
-
-  const choice = await db.choice.update(args)
-
-  return choice
-}
-```
-
-Back in `app/questions/pages/questions/[questionId].tsx`, we can now add a vote button.
-
-In our `li`, add a button like so:
+Now it’s time to add the vote button. In our `li`, add a `button` like so:
 
 ```jsx
 <li key={choice.id}>
@@ -508,10 +530,10 @@ In our `li`, add a button like so:
 </li>
 ```
 
-Then, import our `updateChoice` mutation, and create a `handleVote` function in our page:
+Then, import the `updateChoice` mutation that was generated for us, and create a `handleVote` function in our page:
 
 ```jsx
-import updateChoice from "app/questions/mutations/updateChoice"
+import updateChoice from "app/choices/mutations/updateChoice"
 
 ...
 
@@ -532,7 +554,7 @@ return (
 ...
 ```
 
-Finally, we’ll tell our `button` to call that function!
+Finally, we’ll tell our new `button` to call that function!
 
 ```jsx
 <button onClick={() => handleVote(choice.id, choice.votes)}>Vote</button>
@@ -541,22 +563,22 @@ Finally, we’ll tell our `button` to call that function!
 To be sure, this is what all that should look like:
 
 ```jsx
-import { Suspense } from "react"
-import { Head, Link, useRouter, useQuery } from "blitz"
+import React, {Suspense} from "react"
+import {Head, Link, useRouter, useQuery, useParam} from "blitz"
 import getQuestion from "app/questions/queries/getQuestion"
 import deleteQuestion from "app/questions/mutations/deleteQuestion"
-import updateChoice from "app/questions/mutations/updateChoice"
+import updateChoice from "app/choices/mutations/updateChoice"
 
-export const Question = () => {
+export const Question: React.FC = () => {
   const router = useRouter()
-  const questionId = parseInt(router?.query.questionId as string)
-  const [question] = useQuery(getQuestion, { where: { id: questionId } })
+  const questionId = useParam("questionId", "number")
+  const [question] = useQuery(getQuestion, {where: {id: questionId}})
 
   const handleVote = async (id, votes) => {
     try {
       const updated = await updateChoice({
-        where: { id },
-        data: { votes: votes + 1 },
+        where: {id},
+        data: {votes: votes + 1},
       })
       alert("Success!" + JSON.stringify(updated))
     } catch (error) {
@@ -583,19 +605,18 @@ export const Question = () => {
       <button
         type="button"
         onClick={async () => {
-          if (confirm("This will be deleted")) {
-            await deleteQuestion({ where: { id: question.id } })
+          if (window.confirm("This will be deleted")) {
+            await deleteQuestion({where: {id: question.id}})
             router.push("/questions")
           }
-        }}
-      >
+        }}>
         Delete
       </button>
     </div>
   )
 }
 
-const ShowQuestionPage = () => {
+const ShowQuestionPage: React.FC = () => {
   return (
     <div>
       <Head>
